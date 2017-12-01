@@ -5,6 +5,7 @@ namespace '2305' do
     bug_dir = File.join(base_dir, bugno)
     bug_wd = File.join(bug_dir, 'workdir')
 
+    desc 'Preparing things'
     task :prepare do
         sh "mkdir -p #{bug_wd}"
         sh "rm -rf #{bug_wd}/ipc"
@@ -12,6 +13,7 @@ namespace '2305' do
         sh "cp #{bug_dir}/genesis.json #{bug_wd}"
     end
 
+    desc 'Run node1, should run prepare first'
     task :node1 do
       sh "rm -rf #{bug_wd}/1"
       sh "mkdir #{bug_wd}/1"
@@ -31,6 +33,7 @@ namespace '2305' do
       end
     end
 
+    desc 'Run node2, should run prepare first'
     task :node2 do
       sh "rm -rf #{bug_wd}/2"
       sh "mkdir #{bug_wd}/2"
