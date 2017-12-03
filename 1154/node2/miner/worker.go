@@ -6,6 +6,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -294,9 +295,13 @@ func (self *worker) makeCurrent() {
 		return
 	}
 
-	if block.Time() <= parent.Time() {
-		block.Header().Time = parent.Header().Time + 1
+	// ME: make it to be future block
+	if block.Header().Number.Cmp(big.NewInt(0)) == 1 {
+		block.Header().Time = uint64(time.Now().Unix() + 10)
 	}
+	// if block.Time() <= parent.Time() {
+	// 	block.Header().Time = parent.Header().Time + 1
+	// }
 	block.Header().Extra = self.extra
 
 	// when 08 is processed ancestors contain 07 (quick block)

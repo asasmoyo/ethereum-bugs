@@ -593,6 +593,7 @@ func (self *ChainManager) InsertChain(chain types.Blocks) (int, error) {
 				continue
 			}
 
+			glog.Infoln("[ME]: Got err:", err)
 			blockErr(block, err)
 
 			return i, err

@@ -277,10 +277,11 @@ func (sm *BlockProcessor) ValidateHeader(block, parent *types.Header, checkPow b
 		return fmt.Errorf("Block extra data too long (%d)", len(block.Extra))
 	}
 
-	expd := CalcDifficulty(block, parent)
-	if expd.Cmp(block.Difficulty) != 0 {
-		return fmt.Errorf("Difficulty check failed for block %v, %v", block.Difficulty, expd)
-	}
+	// ME: disable difficulty checking
+	// expd := CalcDifficulty(block, parent)
+	// if expd.Cmp(block.Difficulty) != 0 {
+	// 	return fmt.Errorf("Difficulty check failed for block %v, %v", block.Difficulty, expd)
+	// }
 
 	a := new(big.Int).Sub(block.GasLimit, parent.GasLimit)
 	a.Abs(a)
