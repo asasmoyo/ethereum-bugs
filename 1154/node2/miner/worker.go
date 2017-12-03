@@ -297,7 +297,7 @@ func (self *worker) makeCurrent() {
 
 	// ME: make it to be future block
 	if block.Header().Number.Cmp(big.NewInt(0)) == 1 {
-		block.Header().Time = uint64(time.Now().Unix() + 10)
+		block.Header().Time = uint64(time.Now().Unix() + 20)
 	}
 	// if block.Time() <= parent.Time() {
 	// 	block.Header().Time = parent.Header().Time + 1

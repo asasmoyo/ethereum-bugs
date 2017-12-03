@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -521,14 +522,35 @@ type queueEvent struct {
 	splitCount     int
 }
 
+var working int32
+
 func (self *ChainManager) procFutureBlocks() {
+	glog.Infoln("[ME]: running procFutureBlocks...")
+	if atomic.LoadInt32(&working) == 1 {
+		return
+	}
+	atomic.StoreInt32(&working, 1)
+
 	blocks := make([]*types.Block, len(self.futureBlocks.blocks))
+
+	glog.Infoln("[ME]: waiting for proc_future_block signal...")
+out:
+	for {
+		if _, err := os.Stat("ipc/proc_future_block"); !os.IsNotExist(err) {
+			glog.Infoln("[ME]: got proc_future_block signal... continuing...")
+			break out
+		}
+		time.Sleep(1 * time.Second)
+	}
+
 	self.futureBlocks.Each(func(i int, block *types.Block) {
 		blocks[i] = block
 	})
 
 	types.BlockBy(types.Number).Sort(blocks)
 	self.InsertChain(blocks)
+
+	atomic.StoreInt32(&working, 0)
 }
 
 // InsertChain will attempt to insert the given chain in to the canonical chain or, otherwise, create a fork. It an error is returned
@@ -583,6 +605,10 @@ func (self *ChainManager) InsertChain(chain types.Blocks) (int, error) {
 				block.SetQueued(true)
 				self.futureBlocks.Push(block)
 				stats.queued++
+
+				glog.Infoln("[ME]: writing proc_future_block signal...")
+				os.OpenFile("ipc/proc_future_block", os.O_RDONLY|os.O_CREATE, 0666)
+
 				continue
 			}
 
