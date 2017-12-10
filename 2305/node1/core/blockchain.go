@@ -25,11 +25,11 @@ import (
 	"math"
 	"math/big"
 	mrand "math/rand"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
-	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -694,12 +694,17 @@ func (bc *BlockChain) Stop() {
 }
 
 func (self *BlockChain) procFutureBlocks() {
+	if self.waitMe == 1 {
+		return
+	}
+	atomic.StoreInt32(&self.waitMe, 1)
+
 	blocks := make([]*types.Block, self.futureBlocks.Len())
 	for i, hash := range self.futureBlocks.Keys() {
 		glog.V(logger.Info).Infoln("ME: working on future block")
 
 		glog.V(logger.Info).Infoln("ME: waiting for block_processed signal")
-out:
+	out:
 		for {
 			if _, err := os.Stat("ipc/block_processed"); !os.IsNotExist(err) {
 				glog.V(logger.Info).Infoln("ME: got block_processed signal... continuing...")
@@ -715,6 +720,8 @@ out:
 		types.BlockBy(types.Number).Sort(blocks)
 		self.InsertChain(blocks)
 	}
+
+	atomic.StoreInt32(&self.waitMe, 0)
 }
 
 type writeStatus byte
@@ -1174,22 +1181,6 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 					return i, fmt.Errorf("%v: BlockFutureErr, %v > %v", BlockFutureErr, block.Time(), max)
 				}
 
-				// ME: write signal that allows second broadcast
-				go func() {
-					if self.waitMe == 1 {
-						return
-					}
-					atomic.AddInt32(&self.waitMe, 1)
-
-					delay := block.Time().Int64() - time.Now().Unix()
-					glog.V(logger.Debug).Infof("[ME]: waiting for %d seconds before writing send_second_block_signal", delay)
-					<-time.NewTimer(time.Duration(delay) * time.Second).C
-					glog.V(logger.Debug).Infoln("[ME]: writing send_second_block_signal")
-					os.OpenFile("ipc/send_second_block", os.O_RDONLY|os.O_CREATE, 0666)
-
-					atomic.AddInt32(&self.waitMe, 0)
-				}()
-
 				self.futureBlocks.Add(block.Hash(), block)
 				stats.queued++
 				continue
@@ -1285,7 +1276,7 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 
 	// ME: write signal if insertion was a success
 	if stats.processed > 0 {
-		glog.Infoln("writing block_processed signal")
+		glog.Infoln("[ME]: writing block_processed signal")
 		os.OpenFile("ipc/block_processed", os.O_RDONLY|os.O_CREATE, 0666)
 	}
 
