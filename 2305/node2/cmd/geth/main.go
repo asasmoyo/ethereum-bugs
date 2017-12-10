@@ -427,18 +427,6 @@ func run(ctx *cli.Context) {
 		glog.Infoln("[ME]: broadcasting block")
 		ethereum.ProtocolManager().BroadcastBlock(theBlock, false)
 		ethereum.ProtocolManager().BroadcastBlock(theBlock, true)
-
-		glog.Infoln("[ME]: waiting for send_second_block signal")
-out:
-		for {
-			if _, err := os.Stat("ipc/send_second_block"); !os.IsNotExist(err) {
-				glog.Infoln("[ME]: got send_second_block signal... continuing...")
-				break out
-			}
-			time.Sleep(1 * time.Second)
-		}
-		ethereum.ProtocolManager().BroadcastBlock(theBlock, false)
-		ethereum.ProtocolManager().BroadcastBlock(theBlock, true)
 	}()
 
 	// this blocks the thread

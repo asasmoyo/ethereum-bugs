@@ -106,4 +106,23 @@ namespace '2305' do
       --nodekeyhex="a7048a044fd33a30836927fef626677e0eb59ffa7024f0075bb735f365731a6d"'
     end
   end
+
+  desc 'Run node3, should run prepare first'
+  task :node3 do
+    sh "rm -rf #{bug_wd}/3"
+    sh "mkdir #{bug_wd}/3"
+    sh "cp #{bug_dir}/static-nodes.json.3 #{bug_wd}/3/static-nodes.json"
+
+    node3_app = File.join(bug_dir, 'node3')
+    Dir.chdir(node3_app) do
+      sh 'make'
+      sh 'mv build/bin/geth ../workdir/geth3'
+    end
+
+    Dir.chdir(bug_wd) do
+      sh './geth3 --datadir=3 --networkid=9999 --nodiscover --genesis=genesis.json --verbosity=6 \
+      --port=9003 --nat="extip:127.0.0.1" \
+      --nodekeyhex="075f47f24e5a94949f2c2fe273b444d884959f89a04727bf96bb2e0b94f345cb"'
+    end
+  end
 end
