@@ -1,3 +1,5 @@
+require 'json'
+
 base_dir = __dir__
 
 namespace '1154' do
@@ -124,5 +126,68 @@ namespace '2305' do
       --port=9003 --nat="extip:127.0.0.1" \
       --nodekeyhex="075f47f24e5a94949f2c2fe273b444d884959f89a04727bf96bb2e0b94f345cb"'
     end
+  end
+
+  namespace :samc do
+    desc 'Prepare cluster for samc. It needs the number of nodes and cluster dir'
+    task :setup, [:num_nodes, :cluster_dir] do |task, args|
+      static_nodes = {}
+
+      puts "> Initializing ethereum cluster at #{args[:cluster_dir]} with #{args[:num_nodes]} nodes"
+
+      # create cluster_dir
+      puts '> Create cluster dir'
+      sh "mkdir -p #{args[:cluster_dir]}"
+
+      # create each node workdir
+      puts '> Create each node workdir'
+      for i in 1..args[:num_nodes].to_i do
+        sh "mkdir -p #{args[:cluster_dir]}/#{i}"
+      end
+
+      # copy genesis block
+      puts '> Copy genesis block'
+      for i in 1..args[:num_nodes].to_i do
+        sh "cp #{bug_dir}/genesis.json #{args[:cluster_dir]}/#{i}"
+      end
+
+      # create nodekey
+      puts '> Create nodekey'
+      for i in 1..args[:num_nodes].to_i do
+        enode = create_nodekey("#{args[:cluster_dir]}/#{i}")
+        static_nodes[i] = "enode://#{enode}@127.0.0.1:#{9000+i}"
+      end
+
+      # create static-nodes.json
+      puts '> Create static-nodes.json'
+      for i in 1..args[:num_nodes].to_i do
+        curr_static_nodes = []
+        static_nodes.each do |k, v|
+          next if k == i
+
+          curr_static_nodes.push(v)
+        end
+
+        static_nodes_path = File.join(args[:cluster_dir], i.to_s, 'static-nodes.json')
+        File.open(static_nodes_path, 'w') do |f|
+          f.puts JSON.generate(curr_static_nodes)
+        end
+      end
+    end
+  end
+end
+
+def create_nodekey(dir)
+  bootnode_bin = File.join(__dir__, 'bootnode')
+  sh "#{bootnode_bin} -genkey #{dir}/nodekey"
+  return `#{bootnode_bin} -nodekey #{dir}/nodekey -writeaddress`.strip!
+end
+
+# compile eth located in dir
+# then copy resulting geth binary into to
+def compile_eth(dir, to)
+  Dir.chdir(dir) do
+    sh 'make'
+    sh "cp build/bin/geth #{to}"
   end
 end
