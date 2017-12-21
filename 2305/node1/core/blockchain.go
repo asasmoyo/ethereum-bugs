@@ -25,6 +25,7 @@ import (
 	"math"
 	"math/big"
 	mrand "math/rand"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -113,6 +114,8 @@ type BlockChain struct {
 	rand      *mrand.Rand
 	processor Processor
 	validator Validator
+
+	waitMe int32
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -691,8 +694,25 @@ func (bc *BlockChain) Stop() {
 }
 
 func (self *BlockChain) procFutureBlocks() {
+	if self.waitMe == 1 {
+		return
+	}
+	atomic.StoreInt32(&self.waitMe, 1)
+
 	blocks := make([]*types.Block, self.futureBlocks.Len())
 	for i, hash := range self.futureBlocks.Keys() {
+		glog.V(logger.Info).Infoln("ME: working on future block")
+
+		glog.V(logger.Info).Infoln("ME: waiting for block_processed signal")
+	out:
+		for {
+			if _, err := os.Stat("ipc/block_processed"); !os.IsNotExist(err) {
+				glog.V(logger.Info).Infoln("ME: got block_processed signal... continuing...")
+				break out
+			}
+			time.Sleep(1 * time.Second)
+		}
+
 		block, _ := self.futureBlocks.Get(hash)
 		blocks[i] = block.(*types.Block)
 	}
@@ -700,6 +720,8 @@ func (self *BlockChain) procFutureBlocks() {
 		types.BlockBy(types.Number).Sort(blocks)
 		self.InsertChain(blocks)
 	}
+
+	atomic.StoreInt32(&self.waitMe, 0)
 }
 
 type writeStatus byte
@@ -1251,6 +1273,12 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		glog.Infof("imported %d block(s) (%d queued %d ignored) including %d txs in %v. #%v [%x / %x]\n", stats.processed, stats.queued, stats.ignored, txcount, tend, end.Number(), start.Hash().Bytes()[:4], end.Hash().Bytes()[:4])
 	}
 	go self.postChainEvents(events, coalescedLogs)
+
+	// ME: write signal if insertion was a success
+	if stats.processed > 0 {
+		glog.Infoln("[ME]: writing block_processed signal")
+		os.OpenFile("ipc/block_processed", os.O_RDONLY|os.O_CREATE, 0666)
+	}
 
 	return 0, nil
 }

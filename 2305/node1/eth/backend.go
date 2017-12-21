@@ -267,8 +267,6 @@ type Ethereum struct {
 	clientVersion string
 	netVersionId  int
 	shhVersionId  int
-
-	TheBlock chan *types.Block
 }
 
 func New(config *Config) (*Ethereum, error) {
@@ -385,7 +383,6 @@ func New(config *Config) (*Ethereum, error) {
 		GpobaseStepUp:           config.GpobaseStepUp,
 		GpobaseCorrectionFactor: config.GpobaseCorrectionFactor,
 		httpclient:              httpclient.New(config.DocRoot),
-		TheBlock:                make(chan *types.Block),
 	}
 
 	if config.PowTest {
@@ -408,10 +405,9 @@ func New(config *Config) (*Ethereum, error) {
 	newPool := core.NewTxPool(eth.EventMux(), eth.blockchain.State, eth.blockchain.GasLimit)
 	eth.txPool = newPool
 
-	if eth.protocolManager, err = NewProtocolManager(config.FastSync, config.NetworkId, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb, eth.TheBlock); err != nil {
+	if eth.protocolManager, err = NewProtocolManager(config.FastSync, config.NetworkId, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb); err != nil {
 		return nil, err
 	}
-
 	eth.miner = miner.New(eth, eth.EventMux(), eth.pow)
 	eth.miner.SetGasPrice(config.GasPrice)
 	eth.miner.SetExtra(config.ExtraData)
@@ -502,7 +498,6 @@ func (s *Ethereum) EthVersion() int                    { return int(s.protocolMa
 func (s *Ethereum) NetVersion() int                    { return s.netVersionId }
 func (s *Ethereum) ShhVersion() int                    { return s.shhVersionId }
 func (s *Ethereum) Downloader() *downloader.Downloader { return s.protocolManager.downloader }
-func (s *Ethereum) ProtocolManager() *ProtocolManager  { return s.protocolManager }
 
 // Start the ethereum
 func (s *Ethereum) Start() error {

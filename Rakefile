@@ -69,23 +69,42 @@ namespace '2305' do
       sh "cp #{bug_dir}/genesis.json #{bug_wd}"
   end
 
+  desc 'Run node0, should run prepare first'
+  task :node0 do
+    sh "rm -rf #{bug_wd}/0"
+    sh "mkdir #{bug_wd}/0"
+    sh "cp #{bug_dir}/static-nodes.json.0 #{bug_wd}/0/static-nodes.json"
+
+    node_dir = File.join(bug_dir, 'node0')
+    Dir.chdir(node_dir) do
+      sh 'make'
+      sh 'mv build/bin/geth ../workdir/geth0'
+    end
+
+    Dir.chdir(bug_wd) do
+      sh './geth0 --datadir=0 --networkid=9999 --nodiscover --genesis=genesis.json --verbosity=6 \
+        --port=9000 --nat="extip:127.0.0.1" \
+        --nodekeyhex="49c1afa125b4475bc9f46bdf6e97168c9b6cb2e79b9dac04bcb48925ec34d9f9" \
+        --mine --minerthreads=1 --etherbase=0x281055afc982d96fab65b3a49cac8b878184cb16'
+    end
+  end
+
   desc 'Run node1, should run prepare first'
   task :node1 do
     sh "rm -rf #{bug_wd}/1"
     sh "mkdir #{bug_wd}/1"
     sh "cp #{bug_dir}/static-nodes.json.1 #{bug_wd}/1/static-nodes.json"
 
-    node1_app = File.join(bug_dir, 'node1')
-    Dir.chdir(node1_app) do
+    node_dir = File.join(bug_dir, 'node1')
+    Dir.chdir(node_dir) do
       sh 'make'
       sh 'mv build/bin/geth ../workdir/geth1'
     end
 
     Dir.chdir(bug_wd) do
       sh './geth1 --datadir=1 --networkid=9999 --nodiscover --genesis=genesis.json --verbosity=6 \
-        --port=9001 --nat="extip:127.0.0.1" \
-        --nodekeyhex="49c1afa125b4475bc9f46bdf6e97168c9b6cb2e79b9dac04bcb48925ec34d9f9" \
-        console'
+      --port=9001 --nat="extip:127.0.0.1" \
+      --nodekeyhex="a7048a044fd33a30836927fef626677e0eb59ffa7024f0075bb735f365731a6d"'
     end
   end
 
@@ -95,35 +114,15 @@ namespace '2305' do
     sh "mkdir #{bug_wd}/2"
     sh "cp #{bug_dir}/static-nodes.json.2 #{bug_wd}/2/static-nodes.json"
 
-    node2_app = File.join(bug_dir, 'node2')
-    Dir.chdir(node2_app) do
+    node_dir = File.join(bug_dir, 'node2')
+    Dir.chdir(node_dir) do
       sh 'make'
       sh 'mv build/bin/geth ../workdir/geth2'
     end
 
     Dir.chdir(bug_wd) do
       sh './geth2 --datadir=2 --networkid=9999 --nodiscover --genesis=genesis.json --verbosity=6 \
-      --mine --minerthreads=1 --etherbase=0x281055afc982d96fab65b3a49cac8b878184cb16 \
       --port=9002 --nat="extip:127.0.0.1" \
-      --nodekeyhex="a7048a044fd33a30836927fef626677e0eb59ffa7024f0075bb735f365731a6d"'
-    end
-  end
-
-  desc 'Run node3, should run prepare first'
-  task :node3 do
-    sh "rm -rf #{bug_wd}/3"
-    sh "mkdir #{bug_wd}/3"
-    sh "cp #{bug_dir}/static-nodes.json.3 #{bug_wd}/3/static-nodes.json"
-
-    node3_app = File.join(bug_dir, 'node3')
-    Dir.chdir(node3_app) do
-      sh 'make'
-      sh 'mv build/bin/geth ../workdir/geth3'
-    end
-
-    Dir.chdir(bug_wd) do
-      sh './geth3 --datadir=3 --networkid=9999 --nodiscover --genesis=genesis.json --verbosity=6 \
-      --port=9003 --nat="extip:127.0.0.1" \
       --nodekeyhex="075f47f24e5a94949f2c2fe273b444d884959f89a04727bf96bb2e0b94f345cb"'
     end
   end
@@ -186,7 +185,7 @@ namespace '2305' do
         'geth.ipc',
         'nodes',
         'pid',
-        'get',
+        'geth',
       ]
       unused_files.each do |v|
         sh "rm -rf #{args[:cluster_dir]}/#{args[:node_id]}/#{v}"
@@ -203,6 +202,10 @@ namespace '2305' do
       command = "./geth --datadir=. --networkid=9999 --nodiscover --genesis=genesis.json --verbosity=6 \
       --port=#{9000+args[:node_id].to_i} --nat=\"extip:127.0.0.1\" \
       --nodekeyhex=#{nodekey}"
+
+      # run miner if it is node0
+      command += '--mine --minerthreads=1 --etherbase=0x281055afc982d96fab65b3a49cac8b878184cb16' if args[:node_id] == 0
+
       pid = run_in_background(
         command,
         File.join(args[:cluster_dir], args[:node_id]),
