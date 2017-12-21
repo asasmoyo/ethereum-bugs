@@ -174,6 +174,47 @@ namespace '2305' do
         end
       end
     end
+
+    task :start, [:node_id, :cluster_dir] do |task, args|
+      # delete unused files
+      unused_files = [
+        'chaindata',
+        'dapp',
+        'geth.ipc',
+        'nodes',
+      ]
+      unused_files.each do |v|
+        sh "rm -rf #{args[:cluster_dir]}/#{args[:node_id]}/#{v}"
+      end
+
+      # compile and copy binary
+      compile_eth(
+        File.join(bug_dir,
+        "node#{args[:node_id]}"), File.join(args[:cluster_dir], args[:node_id].to_s)
+      )
+
+      # start the node
+      nodekey = get_nodekey(args[:cluster_dir], args[:node_id])
+      command = "./geth --datadir=. --networkid=9999 --nodiscover --genesis=genesis.json --verbosity=6 \
+      --port=#{9000+args[:node_id].to_i} --nat=\"extip:127.0.0.1\" \
+      --nodekeyhex=#{nodekey}"
+      run_in_background(
+        command,
+        File.join(args[:cluster_dir], args[:node_id]),
+        File.join(args[:cluster_dir], args[:node_id], 'pid'),
+        File.join(args[:cluster_dir], args[:node_id], 'log')
+      )
+    end
+
+    task :stop, [:node_id, :cluster_dir] do |task, args|
+      pid_file = File.join(args[:cluster_dir], args[:node_id], 'pid')
+      stop_process(pid_file)
+    end
+
+    task :kill, [:node_id, :cluster_dir] do |task, args|
+      pid_file = File.join(args[:cluster_dir], args[:node_id], 'pid')
+      force_kill_process(pid_file)
+    end
   end
 end
 
@@ -188,6 +229,30 @@ end
 def compile_eth(dir, to)
   Dir.chdir(dir) do
     sh 'make'
-    sh "cp build/bin/geth #{to}"
+    sh "cp build/bin/geth #{to}/geth"
   end
+end
+
+def get_nodekey(cluster_dir, node_id)
+  return IO.read(File.join(cluster_dir, node_id.to_s, 'nodekey'))
+end
+
+def run_in_background(command, chdir, pid_file_path, log_path)
+  pid = Process.spawn(command, :chdir => chdir, [:out, :err] => [log_path, 'w'])
+  File.open(pid_file_path, 'w') do |f|
+    f.puts pid
+  end
+  return pid
+end
+
+def stop_process(pid_path)
+  pid = IO.read pid_path if File.file?(pid_path)
+  Process.kill('SIGINT', pid.to_i) unless pid == nil
+  File.delete(pid_path) if File.file?(pid_path)
+end
+
+def force_kill_process(pid_path)
+  pid = IO.read pid_path if File.file?(pid_path)
+  Process.kill('SIGKILL', pid.to_i) unless pid == nil
+  File.delete(pid_path) if File.file?(pid_path)
 end
