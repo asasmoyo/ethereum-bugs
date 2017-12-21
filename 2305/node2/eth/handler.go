@@ -19,6 +19,7 @@ package eth
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"sync"
 	"time"
@@ -81,13 +82,11 @@ type ProtocolManager struct {
 	// and processing
 	wg   sync.WaitGroup
 	quit bool
-
-	theBlock chan *types.Block
 }
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the ethereum network.
-func NewProtocolManager(fastSync bool, networkId int, mux *event.TypeMux, txpool txPool, pow pow.PoW, blockchain *core.BlockChain, chaindb ethdb.Database, theBlock chan *types.Block) (*ProtocolManager, error) {
+func NewProtocolManager(fastSync bool, networkId int, mux *event.TypeMux, txpool txPool, pow pow.PoW, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
 	// Figure out whether to allow fast sync or not
 	if fastSync && blockchain.CurrentBlock().NumberU64() > 0 {
 		glog.V(logger.Info).Infof("blockchain not empty, fast sync disabled")
@@ -105,7 +104,6 @@ func NewProtocolManager(fastSync bool, networkId int, mux *event.TypeMux, txpool
 		newPeerCh:  make(chan *peer, 1),
 		txsyncCh:   make(chan *txsync),
 		quitSync:   make(chan struct{}),
-		theBlock:   theBlock,
 	}
 	// Initiate a sub-protocol for every implemented version we can handle
 	manager.SubProtocols = make([]p2p.Protocol, 0, len(ProtocolVersions))
@@ -699,8 +697,8 @@ func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 			glog.V(logger.Error).Infof("propagating dangling block #%d [%x]", block.NumberU64(), hash[:4])
 			return
 		}
-		// ME: send the block to all peers
-		transfer := peers
+		// Send the block to a subset of our peers
+		transfer := peers[:int(math.Sqrt(float64(len(peers))))]
 		for _, peer := range transfer {
 			peer.SendNewBlock(block, td)
 		}
@@ -733,11 +731,12 @@ func (pm *ProtocolManager) BroadcastTx(hash common.Hash, tx *types.Transaction) 
 
 // Mined broadcast loop
 func (self *ProtocolManager) minedBroadcastLoop() {
+	// automatically stops if unsubscribe
 	for obj := range self.minedBlockSub.Chan() {
 		switch ev := obj.Data.(type) {
 		case core.NewMinedBlockEvent:
-			self.theBlock <- ev.Block
-			self.minedBlockSub.Unsubscribe()
+			self.BroadcastBlock(ev.Block, true)  // First propagate block to peers
+			self.BroadcastBlock(ev.Block, false) // Only then announce to the rest
 		}
 	}
 }

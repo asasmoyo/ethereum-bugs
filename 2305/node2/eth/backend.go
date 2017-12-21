@@ -268,7 +268,8 @@ type Ethereum struct {
 	netVersionId  int
 	shhVersionId  int
 
-	TheBlock chan *types.Block
+	// ME: new block channel, after the block is successfully inserted
+	TheBlockCh chan *types.Block
 }
 
 func New(config *Config) (*Ethereum, error) {
@@ -385,7 +386,9 @@ func New(config *Config) (*Ethereum, error) {
 		GpobaseStepUp:           config.GpobaseStepUp,
 		GpobaseCorrectionFactor: config.GpobaseCorrectionFactor,
 		httpclient:              httpclient.New(config.DocRoot),
-		TheBlock:                make(chan *types.Block),
+
+		// ME: init theBlockCh
+		TheBlockCh: make(chan *types.Block),
 	}
 
 	if config.PowTest {
@@ -398,7 +401,7 @@ func New(config *Config) (*Ethereum, error) {
 		eth.pow = ethash.New()
 	}
 	//genesis := core.GenesisBlock(uint64(config.GenesisNonce), stateDb)
-	eth.blockchain, err = core.NewBlockChain(chainDb, eth.pow, eth.EventMux())
+	eth.blockchain, err = core.NewBlockChain(chainDb, eth.pow, eth.EventMux(), eth.TheBlockCh)
 	if err != nil {
 		if err == core.ErrNoGenesis {
 			return nil, fmt.Errorf(`Genesis block not found. Please supply a genesis block with the "--genesis /path/to/file" argument`)
@@ -408,10 +411,9 @@ func New(config *Config) (*Ethereum, error) {
 	newPool := core.NewTxPool(eth.EventMux(), eth.blockchain.State, eth.blockchain.GasLimit)
 	eth.txPool = newPool
 
-	if eth.protocolManager, err = NewProtocolManager(config.FastSync, config.NetworkId, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb, eth.TheBlock); err != nil {
+	if eth.protocolManager, err = NewProtocolManager(config.FastSync, config.NetworkId, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb); err != nil {
 		return nil, err
 	}
-
 	eth.miner = miner.New(eth, eth.EventMux(), eth.pow)
 	eth.miner.SetGasPrice(config.GasPrice)
 	eth.miner.SetExtra(config.ExtraData)

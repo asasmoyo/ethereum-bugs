@@ -276,12 +276,11 @@ func (self *worker) wait() {
 			block := result.Block
 			work := result.Work
 
-			if true {
+			if self.fullValidation {
 				if _, err := self.chain.InsertChain(types.Blocks{block}); err != nil {
 					glog.V(logger.Error).Infoln("mining err", err)
 					continue
 				}
-				glog.V(logger.Error).Infoln("[ME]: mined a block")
 				go self.mux.Post(core.NewMinedBlockEvent{block})
 			} else {
 				work.state.Commit()
@@ -468,9 +467,8 @@ func (self *worker) commitNewWork() {
 	// this will ensure we're not going off too far in the future
 	if now := time.Now().Unix(); tstamp > now+4 {
 		wait := time.Duration(tstamp-now) * time.Second
-        glog.V(logger.Info).Infoln("We are too far in the future. Waiting for", wait)
-        // ME: no need to wait for future block
-		// time.Sleep(wait)
+		glog.V(logger.Info).Infoln("We are too far in the future. Waiting for", wait)
+		time.Sleep(wait)
 	}
 
 	num := parent.Number()
@@ -482,7 +480,7 @@ func (self *worker) commitNewWork() {
 		GasUsed:    new(big.Int),
 		Coinbase:   self.coinbase,
 		Extra:      self.extra,
-		Time:       big.NewInt(tstamp + 20), // ME: change the block timestamp to make it a future block
+		Time:       big.NewInt(tstamp),
 	}
 
 	previous := self.current

@@ -138,7 +138,7 @@ The output of this command is supposed to be machine-readable.
 			},
 			Description: `
 
-    get wallet import /path/to/my/presale.wallet
+	get wallet import /path/to/my/presale.wallet
 
 will prompt for your password and imports your ether presale account.
 It can be used non-interactively with the --password option taking a
@@ -192,7 +192,7 @@ And finally. DO NOT FORGET YOUR PASSWORD.
 					Usage:  "create a new account",
 					Description: `
 
-    ethereum account new
+	ethereum account new
 
 Creates a new account. Prints the address.
 
@@ -202,7 +202,7 @@ You must remember this passphrase to unlock your account in the future.
 
 For non-interactive use the passphrase can be specified with the --password flag:
 
-    ethereum --password <passwordfile> account new
+	ethereum --password <passwordfile> account new
 
 Note, this is meant to be used for testing only, it is a bad idea to save your
 password to file or expose in any other way.
@@ -214,7 +214,7 @@ password to file or expose in any other way.
 					Usage:  "update an existing account",
 					Description: `
 
-    ethereum account update <address>
+	ethereum account update <address>
 
 Update an existing account.
 
@@ -226,7 +226,7 @@ format to the newest format or change the password for an account.
 
 For non-interactive use the passphrase can be specified with the --password flag:
 
-    ethereum --password <passwordfile> account update <address>
+	ethereum --password <passwordfile> account update <address>
 
 Since only one password can be given, only format update can be performed,
 changing your password is only possible interactively.
@@ -241,7 +241,7 @@ changes.
 					Usage:  "import a private key into a new account",
 					Description: `
 
-    ethereum account import <keyfile>
+	ethereum account import <keyfile>
 
 Imports an unencrypted private key from <keyfile> and creates a new account.
 Prints the address.
@@ -254,7 +254,7 @@ You must remember this passphrase to unlock your account in the future.
 
 For non-interactive use the passphrase can be specified with the -password flag:
 
-    ethereum --password <passwordfile> account import <keyfile>
+	ethereum --password <passwordfile> account import <keyfile>
 
 Note:
 As you can directly copy your encrypted accounts to another ethereum instance,
@@ -414,6 +414,21 @@ func run(ctx *cli.Context) {
 	}
 
 	startEth(ctx, ethereum)
+
+	// ME: our hack
+	go func() {
+		glog.Infoln("[ME]: waiting for the block...")
+		theBlock := <-ethereum.TheBlock
+		glog.Infoln("[ME]: got a block in main", theBlock.Hash())
+
+		glog.Infoln("[ME]: stop mining")
+		ethereum.StopMining()
+
+		glog.Infoln("[ME]: broadcasting block")
+		ethereum.ProtocolManager().BroadcastBlock(theBlock, false)
+		ethereum.ProtocolManager().BroadcastBlock(theBlock, true)
+	}()
+
 	// this blocks the thread
 	ethereum.WaitForShutdown()
 }
@@ -587,6 +602,7 @@ func startEth(ctx *cli.Context, eth *eth.Ethereum) {
 		}
 	}
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) {
+		time.Sleep(5 * time.Second)
 		err := eth.StartMining(
 			ctx.GlobalInt(utils.MinerThreadsFlag.Name),
 			ctx.GlobalString(utils.MiningGPUFlag.Name))

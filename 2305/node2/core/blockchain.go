@@ -113,12 +113,14 @@ type BlockChain struct {
 	rand      *mrand.Rand
 	processor Processor
 	validator Validator
+
+	theBlockCh chan *types.Block
 }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialiser the default Ethereum Validator and
 // Processor.
-func NewBlockChain(chainDb ethdb.Database, pow pow.PoW, mux *event.TypeMux) (*BlockChain, error) {
+func NewBlockChain(chainDb ethdb.Database, pow pow.PoW, mux *event.TypeMux, theBlockCh chan *types.Block) (*BlockChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	bodyCache, _ := lru.New(bodyCacheLimit)
 	bodyRLPCache, _ := lru.New(bodyCacheLimit)
@@ -137,6 +139,7 @@ func NewBlockChain(chainDb ethdb.Database, pow pow.PoW, mux *event.TypeMux) (*Bl
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
 		pow:          pow,
+		theBlockCh:   theBlockCh,
 	}
 	// Seed a fast but crypto originating random generator
 	seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
@@ -1212,6 +1215,14 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		status, err := self.WriteBlock(block)
 		if err != nil {
 			return i, err
+		}
+
+		// ME: the block is successfully inserted
+		glog.V(logger.Info).Infoln("HOLAAA!!!!!!")
+		if self.theBlockCh != nil {
+			glog.V(logger.Info).Infoln("[ME]: the block is successfully inserted, sending through channel...")
+			self.theBlockCh <- block
+			glog.V(logger.Info).Infoln("[ME]: sent!")
 		}
 
 		switch status {

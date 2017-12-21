@@ -153,16 +153,12 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 
 // SendBlockHashes sends a batch of known hashes to the remote peer.
 func (p *peer) SendBlockHashes(hashes []common.Hash) error {
-	// ME: disable sending block
-	return nil
-	// return p2p.Send(p.rw, BlockHashesMsg, hashes)
+	return p2p.Send(p.rw, BlockHashesMsg, hashes)
 }
 
 // SendBlocks sends a batch of blocks to the remote peer.
 func (p *peer) SendBlocks(blocks []*types.Block) error {
-	// ME: disable sending block
-	return nil
-	// return p2p.Send(p.rw, BlocksMsg, blocks)
+	return p2p.Send(p.rw, BlocksMsg, blocks)
 }
 
 // SendNewBlockHashes61 announces the availability of a number of blocks through
@@ -190,24 +186,18 @@ func (p *peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error 
 
 // SendNewBlock propagates an entire block to a remote peer.
 func (p *peer) SendNewBlock(block *types.Block, td *big.Int) error {
-	// ME: disable sending block
 	p.knownBlocks.Add(block.Hash())
-	return nil
-	// return p2p.Send(p.rw, NewBlockMsg, []interface{}{block, td})
+	return p2p.Send(p.rw, NewBlockMsg, []interface{}{block, td})
 }
 
 // SendBlockHeaders sends a batch of block headers to the remote peer.
 func (p *peer) SendBlockHeaders(headers []*types.Header) error {
-	// ME: disable sending block
-	return nil
-	// return p2p.Send(p.rw, BlockHeadersMsg, headers)
+	return p2p.Send(p.rw, BlockHeadersMsg, headers)
 }
 
 // SendBlockBodies sends a batch of block contents to the remote peer.
 func (p *peer) SendBlockBodies(bodies []*blockBody) error {
-	// ME: disable sending block
-	return nil
-	// return p2p.Send(p.rw, BlockBodiesMsg, blockBodiesData(bodies))
+	return p2p.Send(p.rw, BlockBodiesMsg, blockBodiesData(bodies))
 }
 
 // SendBlockBodiesRLP sends a batch of block contents to the remote peer from

@@ -141,26 +141,26 @@ namespace '2305' do
 
       # create each node workdir
       puts '> Create each node workdir'
-      for i in 1..args[:num_nodes].to_i do
+      for i in 0..args[:num_nodes].to_i-1 do
         sh "mkdir -p #{args[:cluster_dir]}/#{i}"
       end
 
       # copy genesis block
       puts '> Copy genesis block'
-      for i in 1..args[:num_nodes].to_i do
+      for i in 0..args[:num_nodes].to_i-1 do
         sh "cp #{bug_dir}/genesis.json #{args[:cluster_dir]}/#{i}"
       end
 
       # create nodekey
       puts '> Create nodekey'
-      for i in 1..args[:num_nodes].to_i do
+      for i in 0..args[:num_nodes].to_i-1 do
         enode = create_nodekey("#{args[:cluster_dir]}/#{i}")
         static_nodes[i] = "enode://#{enode}@127.0.0.1:#{9000+i}"
       end
 
       # create static-nodes.json
       puts '> Create static-nodes.json'
-      for i in 1..args[:num_nodes].to_i do
+      for i in 0..args[:num_nodes].to_i-1 do
         curr_static_nodes = []
         static_nodes.each do |k, v|
           next if k == i
@@ -175,13 +175,18 @@ namespace '2305' do
       end
     end
 
+    desc 'Start the node id in cluster dir in background'
     task :start, [:node_id, :cluster_dir] do |task, args|
+      puts "Starting node #{args[:node_id]}"
+
       # delete unused files
       unused_files = [
         'chaindata',
         'dapp',
         'geth.ipc',
         'nodes',
+        'pid',
+        'get',
       ]
       unused_files.each do |v|
         sh "rm -rf #{args[:cluster_dir]}/#{args[:node_id]}/#{v}"
@@ -189,8 +194,8 @@ namespace '2305' do
 
       # compile and copy binary
       compile_eth(
-        File.join(bug_dir,
-        "node#{args[:node_id]}"), File.join(args[:cluster_dir], args[:node_id].to_s)
+        File.join(bug_dir, "node#{args[:node_id].to_i}"),
+        File.join(args[:cluster_dir], args[:node_id].to_s)
       )
 
       # start the node
@@ -198,20 +203,27 @@ namespace '2305' do
       command = "./geth --datadir=. --networkid=9999 --nodiscover --genesis=genesis.json --verbosity=6 \
       --port=#{9000+args[:node_id].to_i} --nat=\"extip:127.0.0.1\" \
       --nodekeyhex=#{nodekey}"
-      run_in_background(
+      pid = run_in_background(
         command,
         File.join(args[:cluster_dir], args[:node_id]),
         File.join(args[:cluster_dir], args[:node_id], 'pid'),
         File.join(args[:cluster_dir], args[:node_id], 'log')
       )
+      puts "Got pid #{pid}"
     end
 
+    desc 'Gracefully stop node id in cluster dir'
     task :stop, [:node_id, :cluster_dir] do |task, args|
+      puts "Stopping node #{args[:node_id]}"
+
       pid_file = File.join(args[:cluster_dir], args[:node_id], 'pid')
       stop_process(pid_file)
     end
 
+    desc 'Forcefully stop node id in cluster dir'
     task :kill, [:node_id, :cluster_dir] do |task, args|
+      puts "Killing node #{args[:node_id]}"
+
       pid_file = File.join(args[:cluster_dir], args[:node_id], 'pid')
       force_kill_process(pid_file)
     end

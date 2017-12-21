@@ -19,6 +19,7 @@ package core
 import (
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -210,10 +211,9 @@ func ValidateHeader(pow pow.PoW, header *types.Header, parent *types.Header, che
 			return BlockTSTooBigErr
 		}
 	} else {
-		// ME: we want the block to be future block so don't need this
-		// if header.Time.Cmp(big.NewInt(time.Now().Unix())) == 1 {
-		// 	return BlockFutureErr
-		// }
+		if header.Time.Cmp(big.NewInt(time.Now().Unix())) == 1 {
+			return BlockFutureErr
+		}
 	}
 	if header.Time.Cmp(parent.Time) != 1 {
 		return BlockEqualTSErr
