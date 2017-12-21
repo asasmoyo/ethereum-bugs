@@ -1,20 +1,24 @@
 BUG #2305
 =========
 
-Idea to reproduce:
+1. There are 3 nodes (miner, node1, node2)
 
-1. Run 2 nodes.
+2. Miner mines a future block with timestamp +20
 
-    - `node1` becomes normal node, it just do synchronication
+3. Miner broadcast the block to node1 and node2
 
-    - `node2` becomes a miner, it will create a block with timestamp + 10 seconds to make it a future block
+    https://github.com/asasmoyo/ethereum-bugs/blob/master/2305/node0/cmd/geth/main.go#L419
 
-2. `node2` create a block, set timestamp + 10 seconds, send it to `node1`. `node2` then wait until `node1` gives signal to send the same block again by reading file at `ipc/got_hash`. When the file exists `node2` will send the same block again to `node1`.
+4. Node1 receives the block then put it into future blocks list. The worker ticks then waits until it gets block_processed signal
 
-3. `node1` wait `node2` to send its block. Once it received it will be inserted to future blocks (might need some modification to make so). Once it received, `node1` will wait for future blocks processing runs for every 5 seconds. When `node1` takes the hash of future blocks in the loop, it will send ipc by writing file at `ipc/got_hash`, then wait until `node2` broadcast the same block again. `node1` also wait for signal that indicating the block has been processed by trying to read `ipc/block_processed`. When it does `node1` will try to get block by hash. But since it is already taken out from the future blocks, it will returns nil. Then `node1` tries to insert nil block, then panic.
+    https://github.com/asasmoyo/ethereum-bugs/blob/master/2305/node1/core/blockchain.go#L706
 
-Things to do:
+5. Node2 will processes the block after several attempts. It then broadcast the block
 
-1. Need to make `node2` to just broadcast a custom block, wait for a signal, then broadcast it again.
+    https://github.com/asasmoyo/ethereum-bugs/blob/master/2305/node2/cmd/geth/main.go#L420
 
-2. Need to make `node1` wait for a signal before getting a future blocks by hash. Also need to write a signal whenever a block is successfully processed.
+6. Node 1 receives the same block, processes it, removes it from future block list then create block_processed signal
+
+    https://github.com/asasmoyo/ethereum-bugs/blob/master/2305/node1/core/blockchain.go#L1277
+
+7. The worker in node 1 continues and crash

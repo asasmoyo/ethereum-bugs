@@ -26,6 +26,7 @@ import (
 	"math/big"
 	mrand "math/rand"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -701,13 +702,15 @@ func (self *BlockChain) procFutureBlocks() {
 
 	blocks := make([]*types.Block, self.futureBlocks.Len())
 	for i, hash := range self.futureBlocks.Keys() {
-		glog.V(logger.Info).Infoln("ME: working on future block")
+		glog.V(logger.Info).Infoln("[ME]: working on future block")
 
-		glog.V(logger.Info).Infoln("ME: waiting for block_processed signal")
+		glog.V(logger.Info).Infoln("[ME]: waiting for block_processed signal")
 	out:
 		for {
-			if _, err := os.Stat("ipc/block_processed"); !os.IsNotExist(err) {
-				glog.V(logger.Info).Infoln("ME: got block_processed signal... continuing...")
+			signalFile := filepath.Join(os.Getenv("IPC_DIR"), "block_processed")
+			glog.V(logger.Info).Infof("[ME]: trying to read %s\n", signalFile)
+			if _, err := os.Stat(signalFile); !os.IsNotExist(err) {
+				glog.V(logger.Info).Infoln("[ME]: got block_processed signal... continuing...")
 				break out
 			}
 			time.Sleep(1 * time.Second)
@@ -1277,7 +1280,9 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	// ME: write signal if insertion was a success
 	if stats.processed > 0 {
 		glog.Infoln("[ME]: writing block_processed signal")
-		os.OpenFile("ipc/block_processed", os.O_RDONLY|os.O_CREATE, 0666)
+		signalFile := filepath.Join(os.Getenv("IPC_DIR"), "block_processed")
+		glog.Infof("[ME]: writing to %s\n", signalFile)
+		os.OpenFile(signalFile, os.O_RDONLY|os.O_CREATE, 0666)
 	}
 
 	return 0, nil

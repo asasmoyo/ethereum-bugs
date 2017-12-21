@@ -186,6 +186,7 @@ namespace '2305' do
         'nodes',
         'pid',
         'geth',
+        'log',
       ]
       unused_files.each do |v|
         sh "rm -rf #{args[:cluster_dir]}/#{args[:node_id]}/#{v}"
@@ -204,7 +205,7 @@ namespace '2305' do
       --nodekeyhex=#{nodekey}"
 
       # run miner if it is node0
-      command += '--mine --minerthreads=1 --etherbase=0x281055afc982d96fab65b3a49cac8b878184cb16' if args[:node_id] == 0
+      command += ' --mine --minerthreads=1 --etherbase=0x281055afc982d96fab65b3a49cac8b878184cb16' if args[:node_id].to_i == 0
 
       pid = run_in_background(
         command,
