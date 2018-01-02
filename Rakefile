@@ -130,7 +130,8 @@ namespace '2305' do
   namespace :samc do
     desc 'Prepare cluster for samc. It needs the number of nodes and cluster dir'
     task :setup, [:num_nodes, :cluster_dir] do |task, args|
-      static_nodes = {}
+      enodes = {}
+      nodes = {}
 
       puts "> Initializing ethereum cluster at #{args[:cluster_dir]} with #{args[:num_nodes]} nodes"
 
@@ -154,14 +155,15 @@ namespace '2305' do
       puts '> Create nodekey'
       for i in 0..args[:num_nodes].to_i-1 do
         enode = create_nodekey("#{args[:cluster_dir]}/#{i}")
-        static_nodes[i] = "enode://#{enode}@127.0.0.1:#{9000+i}"
+        enodes[i] = "enode://#{enode}@127.0.0.1:#{9000+i}"
+        nodes[enode] = i
       end
 
       # create static-nodes.json
       puts '> Create static-nodes.json'
       for i in 0..args[:num_nodes].to_i-1 do
         curr_static_nodes = []
-        static_nodes.each do |k, v|
+        enodes.each do |k, v|
           next if k == i
 
           curr_static_nodes.push(v)
@@ -171,6 +173,12 @@ namespace '2305' do
         File.open(static_nodes_path, 'w') do |f|
           f.puts JSON.generate(curr_static_nodes)
         end
+      end
+
+      # create nodes.json
+      puts '> Create nodes.json'
+      File.open(File.join(args[:cluster_dir], 'nodes.json'), 'w') do |f|
+        f.puts JSON.generate(nodes)
       end
     end
 

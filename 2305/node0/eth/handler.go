@@ -702,7 +702,7 @@ func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 		// ME: send the block to all peers
 		transfer := peers
 		for _, peer := range transfer {
-			peer.SendNewBlock(block, td)
+			go peer.SendNewBlock(block, td)
 		}
 		glog.V(logger.Detail).Infof("propagated block %x to %d peers in %v", hash[:4], len(transfer), time.Since(block.ReceivedAt))
 	}

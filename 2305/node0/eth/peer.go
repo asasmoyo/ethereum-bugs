@@ -19,7 +19,10 @@ package eth
 import (
 	"errors"
 	"fmt"
+	"github.com/asasmoyo/samc-helper"
 	"math/big"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -186,6 +189,24 @@ func (p *peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error 
 
 // SendNewBlock propagates an entire block to a remote peer.
 func (p *peer) SendNewBlock(block *types.Block, td *big.Int) error {
+	senderNode, _ := strconv.ParseInt(os.Getenv("SAMC_NODE_ID"), 10, 64)
+	data := map[string]int{
+		"sender_node":  int(senderNode),
+		"message_type": NewBlockMsg,
+	}
+	fileName, err := samchelper.NewIPC(data, p.ID().String())
+	if err != nil {
+		panic(err)
+	}
+	err = samchelper.SendIPC(fileName)
+	if err != nil {
+		panic(err)
+	}
+	err = samchelper.WaitForAckIPC(fileName)
+	if err != nil {
+		panic(err)
+	}
+
 	p.knownBlocks.Add(block.Hash())
 	return p2p.Send(p.rw, NewBlockMsg, []interface{}{block, td})
 }

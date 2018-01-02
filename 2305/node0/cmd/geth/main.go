@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/asasmoyo/samc-helper"
 	"io/ioutil"
 	_ "net/http/pprof"
 	"os"
@@ -421,11 +422,19 @@ func run(ctx *cli.Context) {
 		theBlock := <-ethereum.TheBlock
 		glog.Infoln("[ME]: got a block in main", theBlock.Hash())
 
+		samcIpcDir := os.Getenv("SAMC_IPC_DIR")
+		if samcIpcDir == "" {
+			samcIpcDir = "/tmp/ipc"
+		}
+		samchelper.SetIPCDir(samcIpcDir)
+		samchelper.SetIPCFilePrefix("eth-")
+		glog.Infof("[ME]: setting SAMC_IPC_DIR to %s\n", samcIpcDir)
+
 		glog.Infoln("[ME]: stop mining")
 		ethereum.StopMining()
 
 		glog.Infoln("[ME]: broadcasting block")
-		ethereum.ProtocolManager().BroadcastBlock(theBlock, false)
+		// ethereum.ProtocolManager().BroadcastBlock(theBlock, false)
 		ethereum.ProtocolManager().BroadcastBlock(theBlock, true)
 	}()
 
